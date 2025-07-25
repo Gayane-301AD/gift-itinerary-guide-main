@@ -1,0 +1,161 @@
+---
+description: Apply these rules when making changes to the project
+globs:
+alwaysApply: true
+---
+
+Update this rule if user requested changes to the project requirement, etc.
+# Unified Project Documentation
+
+## Project Requirements Document
+
+### 1. Project Overview
+
+WhatToCarry is a web-based platform that helps people visiting friends or family quickly decide what gifts to bring. It combines an AI-powered chat for personalized gift recommendations, an in-app calendar synced with Google Calendar, and an interactive map of nearby stores. Users enter details about their occasion, budget, and recipient preferences, then receive curated gift ideas. They can mark important dates, get reminders three days before events, and follow real-time directions to selected shops.
+
+This project aims to provide a smooth sign-up flow, reliable AI suggestions, clear navigation, and timely notifications. Success is measured by user adoption and retention, engagement with gift recommendations, and seamless calendar and map experiences. An admin dashboard will monitor platform activity, ensuring uptime and user satisfaction.
+
+### 2. In-Scope vs. Out-of-Scope
+
+**In-Scope (Version 1)**
+
+• User registration, login, and secure JWT-based authentication • Two roles: Guest users and Admins with elevated monitoring rights • Main dashboard featuring AI Chat, Calendar, and Store Map • AI gift recommendations via OpenAI GPT API with daily limits for Free tier • In-app calendar with two-way sync to Google Calendar • Email and in-app reminders triggered three days before events • Google Maps integration showing nearby gift shops, filters, and store details • Turn-by-turn navigation, route duration estimates, and shortest-path guidance • Freemium subscription model (Free vs. Pro) with upgrade/downgrade flow • Admin dashboard for real-time user and system activity monitoring
+
+**Out-of-Scope (Version 1)**
+
+• Native mobile applications or mobile push/SMS notifications • Bulk import of external calendars beyond Google Calendar • Advanced analytics dashboards for marketing or behavior tracking • Social sharing of gift lists or event invitations • Custom AI model training or offline recommendation engines • Augmented reality navigation or offline map capabilities
+
+### 3. User Flow
+
+When someone visits WhatToCarry for the first time, they choose to register or log in. Registration collects personal details like username, name, email, phone number, password, and a profile photo. A verification email confirms their address, then they land on a minimalist dashboard showing AI Chat, Calendar, and Store Map options along with their subscription status and any remaining chat queries.
+
+From the dashboard, users click into the AI Chat to type their occasion, budget, and recipient preferences. The OpenAI GPT API responds with gift ideas they can save. In the Calendar view, they add or edit events that sync with Google Calendar, and they receive email and in-app reminders three days before each date. In the Store Map, they grant location permission, see nearby shops filtered by type, tap a store to view details, and get step-by-step navigation to their chosen location.
+
+### 4. Core Features
+
+• Secure Authentication & Role Management: JWT-based signup/login, Guest and Admin roles • AI-Powered Gift Recommendations: Chat interface using OpenAI GPT, free tier limits, unlimited for Pro • In-App Calendar & Sync: Monthly calendar, Google Calendar integration, automatic reminders • Interactive Store Map & Navigation: Google Maps API, filters, store ratings, website links, turn-by-turn directions • Notifications & Alerts: In-app banners and email notices three days before events, configurable for Pro • Subscription Management: Free vs. Pro plans, upgrade/downgrade via payment gateway, billing history • Admin Monitoring Dashboard: Real-time user and system metrics, activity logs, report generation
+
+### 5. Tech Stack & Tools
+
+• Frontend: Next.js with TypeScript, Tailwind CSS for a clean and responsive UI • Backend: Node.js with Express.js, PostgreSQL database, Prisma ORM for data models • Authentication: JSON Web Tokens (JWT) with refresh token strategy • AI & APIs: OpenAI GPT API for recommendations, Google Calendar API, Google Maps JavaScript API, SendGrid for emails • Dev & Collaboration: Lovable.dev for rapid prototyping, Cursor IDE for AI-assisted coding, Replit for quick testing and teamwork
+
+### 6. Non-Functional Requirements
+
+• Performance: Chat responses under 1.5 seconds; calendar and map load under 3 seconds on broadband • Security: HTTPS/TLS everywhere; encrypted data at rest; GDPR compliance for EU users • Availability: 99.9% uptime; horizontal scaling via Docker and Kubernetes • Accessibility: WCAG 2.1 AA compliance; responsive design for mobile and desktop
+
+### 7. Constraints & Assumptions
+
+• Valid API keys required for OpenAI, Google Calendar, Google Maps, and SendGrid • Users must grant browser location permissions or enter addresses manually • Free tier query limits enforced server-side • Pro payments handled through a third-party gateway (e.g., Stripe) • No offline support or low-bandwidth mode in version 1
+
+### 8. Known Issues & Potential Pitfalls
+
+• API Rate Limits: Monitor quotas for OpenAI and Google APIs; implement retries with backoff and cache frequent requests • Geolocation Failures: Offer manual address entry if GPS is unavailable or inaccurate • Calendar Sync Conflicts: Track sync errors and allow manual resyncs to avoid duplicates • Email Deliverability: Configure SPF/DKIM for SendGrid; monitor bounce rates to prevent spam labeling • Subscription Fraud: Use payment webhooks to detect failed payments or unauthorized downgrades
+
+## App Flow Document
+
+### Onboarding and Sign-In/Sign-Up
+
+When a new user lands on WhatToCarry, they are greeted with options to register or log in. Registration asks for a username, full name, nickname, email, phone number, date of birth, gender, password, and profile image. After they submit, the system sends a verification email. Once they click the link, they are taken to the dashboard. Returning users simply enter their email and password to log in, and there is a “Forgot Password” link that lets them reset via email.
+
+### Main Dashboard or Home Page
+
+After signing in, users see a clean dashboard with a top navigation bar and three main panels labeled Chat, Calendar, and Map. The header shows their profile picture, subscription status, and for Free users, the number of AI queries left today. A sidebar or top menu lets them jump between the AI chat, calendar view, store map, notifications center, and account settings.
+
+### Detailed Feature Flows and Page Transitions
+
+Clicking Chat opens a full-screen conversation window powered by OpenAI. The user types their event details, budget, and recipient preferences. The AI responds with a list of gift ideas, and the user can bookmark or save them. Switching back to the dashboard or clicking another menu item smoothly transitions without full page reloads. In Calendar, users click a date to add or edit an event, fill in fields, then save. The app syncs with Google Calendar in the background and returns them to the month view. On Map, upon granting location permission, nearby stores populate as pins. Users tap a pin to view store details and then hit “Navigate” to see step-by-step directions overlayed on a map. Admins have an extra menu item that opens a monitoring interface showing real-time signup rates, event creations, and map usage charts.
+
+### Settings and Account Management
+
+From their profile icon, users open Account Settings to update personal info, change the password, and manage notification preferences. Under Subscription, they can upgrade or downgrade plans, view billing history, and store payment methods. After saving any changes, a confirmation banner appears and they can return to the main dashboard using a back link or the navigation menu.
+
+### Error States and Alternate Paths
+
+If a user enters invalid data, such as an incorrect email format or missing required fields, inline error messages appear next to the inputs. If location access is denied, the Map view prompts for manual address entry and provides help text. For lost connectivity, the app shows a full-screen offline notice with a “Retry” button. If an API call fails, a toast message informs the user and offers to retry the action.
+
+### Conclusion and Overall App Journey
+
+From registration through gift discovery and store navigation, WhatToCarry guides users in a few clear steps: sign up, choose a feature, complete the task, and switch modules as needed. Reminders and notifications keep them on track, and the admin path ensures system health. By the time a guest picks their gift and arrives at the shop, they have experienced a smooth, supportive journey.
+
+## Tech Stack Document
+
+### Frontend Technologies
+
+• Next.js with TypeScript for server-side rendering and fast page loads • Tailwind CSS for utility-first styling and a clean, consistent look • React Query for data fetching, caching, and real-time updates • Mapbox GL or Google Maps JavaScript API for interactive maps and navigation
+
+### Backend Technologies
+
+• Node.js with Express.js to serve RESTful APIs and handle business logic • PostgreSQL for reliable relational data storage • Prisma ORM for type-safe database models and migrations • JSON Web Tokens (JWT) for stateless authentication and session management
+
+### Infrastructure and Deployment
+
+• Docker containers for consistent environments across development and production • Kubernetes or AWS ECS for automated scaling and load balancing • GitHub Actions or CircleCI for CI/CD pipelines, running tests and deployments • AWS RDS for managed PostgreSQL and AWS S3 for static asset storage
+
+### Third-Party Integrations
+
+• OpenAI GPT API for AI-driven gift recommendations • Google Calendar API for two-way event synchronization • Google Maps API for store locations, filters, and turn-by-turn routing • SendGrid for reliable transactional emails and reminders • Stripe for secure subscription payments and plan management
+
+### Security and Performance Considerations
+
+• TLS/HTTPS enforced on all endpoints to protect data in transit • Data encryption at rest for sensitive user information in PostgreSQL • Rate limiting and request throttling to guard against abuse • Lazy loading of heavy components (map, calendar) to improve initial load time • Caching of AI responses and map tiles to reduce API calls and speed up repeat actions
+
+### Conclusion and Overall Tech Stack Summary
+
+This stack combines proven frameworks like Next.js and Express with managed services for reliability and scale. AI interactions are powered by OpenAI, and map/calendar features rely on Google’s APIs for accuracy. Containerization and CI/CD pipelines ensure smooth deployments, while security measures like TLS, encryption, and rate limiting keep user data safe. Together, these choices support a performant, maintainable platform aligned with WhatToCarry’s goals.
+
+## Frontend Guidelines Document
+
+### Frontend Architecture
+
+The frontend uses a component-based architecture built on Next.js and React. Each screen is broken into reusable components, allowing easy maintenance and scaling. Server-side rendering and API routes in Next.js ensure fast initial loads and SEO benefits. State and data fetching are managed with React Query to keep UI and backend in sync.
+
+### Design Principles
+
+We follow simplicity, accessibility, and responsiveness. Every element has a clear purpose, and the interface uses neutral colors and easy-to-read fonts. Components support keyboard navigation and meet WCAG 2.1 AA contrast ratios. The layout adapts gracefully from desktop down to mobile screens.
+
+### Styling and Theming
+
+Styles are implemented with Tailwind CSS for quick utility classes and consistent spacing. We use a neutral color palette with soft grays, white backgrounds, and one accent color for primary actions. Fonts like Inter or Roboto keep text legible. The theme is defined centrally to ensure all components share the same colors and typography.
+
+### Component Structure
+
+Components are organized by feature folders (Chat, Calendar, Map, Common). Each component folder contains its UI file, styles, and tests. We favor small, focused components that accept props and emit events. Shared components like buttons and form inputs live in a common library for reuse.
+
+### State Management
+
+Local UI state is managed with React’s useState and useReducer hooks. Server-synced data (events, map pins, AI responses) is fetched and cached through React Query. Global application state (user session, subscription status) uses a lightweight Context API provider, minimizing boilerplate.
+
+### Routing and Navigation
+
+Next.js file-based routing handles page transitions. We use Link components for client-side navigation and dynamic routes for details pages (e.g., /store/[id]). A top-level layout wraps all pages with the header and sidebar. Route guards check user authentication before accessing protected pages.
+
+### Performance Optimization
+
+We apply code splitting via dynamic imports for the map and calendar modules. Images are served in optimized formats (WebP) and lazy-loaded when off-screen. Caching headers and CDN delivery speed up static assets. React Query’s cache helps reduce repeated API calls.
+
+### Testing and Quality Assurance
+
+Unit tests use Jest and React Testing Library to verify component logic and UI. Integration tests ensure key flows (signup, chat, calendar sync) work end to end. We run automatic tests in CI on every pull request. Linting with ESLint and formatting with Prettier keep code consistent.
+
+### Conclusion and Overall Frontend Summary
+
+This frontend setup uses Next.js and Tailwind CSS to deliver a fast, accessible, and maintainable user interface. Component-based design, React Query, and code splitting ensure scalability and smooth performance. Together, these guidelines make it easy for any developer or AI to understand and extend WhatToCarry’s frontend with confidence.
+
+## Implementation Plan
+
+1.  **Project Setup**: Initialize monorepo with Next.js frontend and Express backend in separate folders. Configure TypeScript, ESLint, Prettier, and CI/CD pipelines.
+2.  **Authentication Module**: Build JWT-based signup, login, password reset, and role management endpoints. Create corresponding frontend pages and forms.
+3.  **Dashboard Layout**: Implement Next.js layout with header, sidebar, and routing guard. Add placeholder pages for Chat, Calendar, Map, Notifications, and Admin.
+4.  **AI Chat Integration**: Integrate OpenAI GPT API on the backend. Build chat UI, hook up queries with React Query, and enforce Free tier limits.
+5.  **Calendar Sync**: Connect Google Calendar API, store events in PostgreSQL via Prisma, and sync frontend calendar component with React Big Calendar or similar.
+6.  **Map & Navigation**: Integrate Google Maps JavaScript API, request location permission, display nearby store pins, build filter UI, and implement turn-by-turn directions.
+7.  **Notifications Service**: Use SendGrid to send reminder emails. Create in-app notification model and UI. Schedule jobs to trigger reminders three days before events.
+8.  **Subscription Flow**: Integrate Stripe for payment processing. Build upgrade/downgrade UI, enforce subscription features on backend, and show billing history.
+9.  **Admin Dashboard**: Create monitoring APIs for user and event metrics. Build frontend charts and tables for real-time oversight.
+10. **Testing & QA**: Write and refine unit, integration, and end-to-end tests. Perform usability and accessibility audits.
+11. **Performance & Security Hardening**: Enable TLS, set up rate limiting, implement caching strategies, configure database backups, and finalize GDPR compliance.
+12. **Deployment**: Containerize services with Docker, deploy to Kubernetes or managed container service, and point DNS with HTTPS. Run smoke tests and monitor logs.
+13. **Beta Launch & Feedback**: Release to a small user group, gather feedback, fix bugs, and iterate on UI/UX.
+14. **Public Release**: Open registration for all users, monitor usage, and plan Phase 2 features based on user feedback.
+
+This plan ensures a clear, step-by-step path from initial setup to public launch, aligning with the project requirements and tech stack choices.

@@ -1,0 +1,138 @@
+---
+description: Apply these rules when making changes to the project
+globs:
+alwaysApply: true
+---
+
+Update this rule if user requested changes to the project requirement, etc.
+# WhatToCarry: Project Requirements Document
+
+## 1. Project Overview
+
+WhatToCarry is a web-based platform designed to help people visiting friends or family quickly decide what gifts to bring. By uniting AI-powered gift suggestions, a built-in event calendar, and an interactive store map, it simplifies last-minute planning and ensures guests never arrive empty-handed. Users enter details about their occasion—such as event type, budget, and recipient preferences—and receive tailored gift ideas. They can also mark important dates, sync those events with Google Calendar, and get reminders three days in advance. Finally, they can locate nearby shops, filter by store type, and follow real-time directions to their chosen store.
+
+The platform’s key objectives are to deliver a smooth registration flow, reliable and personalized AI recommendations, timely notifications, and a clear, minimalistic interface. Success is measured by user adoption rates, retention (especially Pro subscribers), engagement with AI suggestions, and seamless calendar and map experiences. The system also includes an admin dashboard to monitor overall activity, troubleshoot issues, and maintain platform health.
+
+## 2. In-Scope vs. Out-of-Scope
+
+**In-Scope (Version 1)**
+
+*   User registration, login, and secure authentication (JWT-based).
+*   Two user roles: Guest and Admin, with distinct permissions.
+*   Main dashboard with navigation to three modules: AI Chat, Calendar, and Store Map.
+*   AI-powered gift recommendation chat using OpenAI’s GPT model.
+*   In-app calendar with Google Calendar sync.
+*   Email and in-app notifications triggered 3 days before events.
+*   Interactive map showing nearby gift shops, florists, specialty stores via Google Maps API.
+*   Turn-by-turn directions, travel time estimates, shortest-route guidance.
+*   Store details including ratings, website link, and operating hours.
+*   Freemium subscription model: Free (limited daily AI queries, restricted map info) and Pro (unlimited queries, full map & calendar features).
+*   Admin dashboard for real-time monitoring of user activity and system metrics.
+
+**Out-of-Scope (Version 1)**
+
+*   Mobile native apps or push/SMS notifications.
+*   Bulk event imports or multi-calendar sync (beyond Google).
+*   In-depth analytics dashboards for user behavior.
+*   Social sharing of gift lists or events.
+*   Machine-learning model training or custom AI beyond OpenAI API usage.
+*   Augmented-reality navigation or offline map mode.
+
+## 3. User Flow
+
+When a new user visits WhatToCarry, they first choose to register or log in. Registration collects personal data (username, full name, email, phone, date of birth, gender, password, profile image) and sends a confirmation email. After verifying, the user lands on a clean dashboard that highlights three main actions: Chat with AI for gift ideas, view/manage their Calendar, or explore the Store Map. The header displays subscription status and remaining daily queries for Free users.
+
+Inside the AI Chat, the user types their destination or occasion, their budget, and any gift recipient preferences (e.g., dietary restrictions). The OpenAI model returns a shortlist of curated gift suggestions that the user can bookmark. In the Calendar view, users add or edit events that automatically sync to Google Calendar. Three days before each event, they receive both in-app alerts and sent emails. In the Store Map view, after granting location permission, users see nearby stores filtered by category. Selecting a store pin reveals details and triggers step-by-step navigation to the shop, guided via Google Maps.
+
+## 4. Core Features
+
+*   **Secure Authentication & Role Management**\
+    • JWT-based login/signup\
+    • User roles: Guest (standard) and Admin (monitoring tools)
+*   **AI-Powered Gift Recommendations**\
+    • Chat interface powered by OpenAI’s GPT API\
+    • Inputs: occasion, budget, recipient preferences/dietary restrictions\
+    • Query limits for Free users; unlimited for Pro users\
+    • Save/bookmark suggestions
+*   **In-App Calendar & Sync**\
+    • Monthly calendar view with add/edit event\
+    • Two-way sync with Google Calendar\
+    • Automatic reminders sent 3 days before each event
+*   **Interactive Store Map & Navigation**\
+    • Google Maps integration for nearby stores\
+    • Filters by store type, rating, distance\
+    • Store profiles: ratings, website link, hours\
+    • Turn-by-turn navigation, estimated duration, shortest route
+*   **Notifications & Alerts**\
+    • In-app banners and email reminders\
+    • Configurable for Pro users (reminder times)\
+    • Central notification center
+*   **Subscription Management**\
+    • Free vs. Pro plan details\
+    • Upgrade/downgrade via secure payment gateway\
+    • Billing history and payment method management
+*   **Admin Monitoring Dashboard**\
+    • Real-time user signup/activity metrics\
+    • Event creation and map usage reports\
+    • Tools for troubleshooting and compliance checks
+
+## 5. Tech Stack & Tools
+
+*   **Frontend**\
+    • Next.js (React framework)\
+    • TypeScript / JavaScript\
+    • Tailwind CSS or styled-components for minimal UI
+*   **Backend**\
+    • Node.js + Express.js\
+    • PostgreSQL database\
+    • Prisma ORM for data modeling\
+    • JSON Web Tokens (JWT) for auth
+*   **AI & APIs**\
+    • OpenAI GPT API for gift recommendations\
+    • Google Calendar API for event sync\
+    • Google Maps JavaScript API for map & navigation\
+    • SendGrid API for transactional emails
+*   **Dev Tools & IDEs**\
+    • Lovable.dev for rapid prototyping\
+    • Cursor IDE for AI-powered code suggestions\
+    • Replit for collaboration and quick testing
+
+## 6. Non-Functional Requirements
+
+*   **Performance**\
+    • API responses < 1.5s for chat interactions\
+    • Map and calendar load < 3s on average broadband
+*   **Security & Compliance**\
+    • HTTPS everywhere (TLS)\
+    • JWT tokens with short lifespans and refresh strategy\
+    • Data encryption at rest (PostgreSQL config)\
+    • GDPR compliance for EU users: data rights, consent logging
+*   **Availability & Scalability**\
+    • 99.9% uptime SLA\
+    • Horizontal scaling via container orchestration (e.g., Docker + Kubernetes)
+*   **Usability & Accessibility**\
+    • Mobile-responsive design\
+    • WCAG 2.1 AA compliance for color contrast and keyboard navigation
+
+## 7. Constraints & Assumptions
+
+*   Requires valid API keys for OpenAI, Google Calendar, Google Maps, and SendGrid.
+*   Assumes users have modern browsers with location permissions enabled.
+*   Free tier query limits enforced strictly server-side.
+*   Pro subscription payment handled via third-party gateway (e.g., Stripe).
+*   No offline or low-bandwidth support in v1.
+
+## 8. Known Issues & Potential Pitfalls
+
+*   **API Rate Limits**\
+    • OpenAI and Google APIs enforce quotas; implement retry with exponential backoff and caching for repeated queries.
+*   **Location Accuracy & Permissions**\
+    • Geolocation may fail or be inaccurate; provide manual address entry fallback.
+*   **Calendar Sync Conflicts**\
+    • Duplicate events or sync errors; log sync failures and allow user-initiated resync.
+*   **Email Deliverability**\
+    • SendGrid may mark transactional emails as spam; set up SPF/DKIM records and monitor bounce rates.
+*   **Subscription Fraud**\
+    • Monitor payment gateway webhooks for failed payments and unauthorized downgrades.
+
+By following this PRD, the AI model and development team have a clear, unambiguous guide for building WhatToCarry’s first release. Subsequent technical documents (Tech Stack, Frontend Guidelines, Backend Structure, etc.) can reference these requirements without further clarification.
