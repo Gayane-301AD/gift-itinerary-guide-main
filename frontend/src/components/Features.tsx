@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bot, Calendar, MapPin, Bell, Users, Shield } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useNavigate } from "react-router-dom";
 
 interface FeaturesProps {
   onChatbotOpen: () => void;
@@ -9,6 +10,8 @@ interface FeaturesProps {
 
 const Features = ({ onChatbotOpen, onMapOpen }: FeaturesProps) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
   const features = [
     {
       icon: Bot,
@@ -36,7 +39,7 @@ const Features = ({ onChatbotOpen, onMapOpen }: FeaturesProps) => {
       title: "Smart Notifications",
       description: "Receive timely email and in-app reminders 3 days before important events so you're always prepared.",
       color: "text-orange-500",
-      onClick: undefined
+      onClick: () => navigate('/notifications')
     },
     {
       icon: Users,

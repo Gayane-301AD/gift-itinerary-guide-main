@@ -27,10 +27,11 @@ import { requestLogger } from './middleware/logger.js';
 // Import scheduled tasks
 import { initializeScheduledTasks } from './utils/scheduler.js';
 
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load environment variables from the backend directory
+dotenv.config();
 
 const app = express();
 
@@ -48,7 +49,7 @@ app.use(helmet({
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']

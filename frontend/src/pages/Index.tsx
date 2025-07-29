@@ -7,13 +7,16 @@ import About from "@/components/About";
 import Footer from "@/components/Footer";
 import Chatbot from "@/components/Chatbot";
 import MapSelection from "@/components/MapSelection";
+import RegistrationPrompt from "@/components/RegistrationPrompt";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 const Index = () => {
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isMapSelectionOpen, setIsMapSelectionOpen] = useState(false);
+  const { requireAuth, showRegistrationPrompt, closeRegistrationPrompt } = useAuthGuard();
 
-  const handleChatbotOpen = () => setIsChatbotOpen(true);
-  const handleMapOpen = () => setIsMapSelectionOpen(true);
+  const handleChatbotOpen = () => requireAuth(() => setIsChatbotOpen(true));
+  const handleMapOpen = () => requireAuth(() => setIsMapSelectionOpen(true));
 
   return (
     <div className="min-h-screen bg-background">
@@ -27,6 +30,7 @@ const Index = () => {
       {/* Modals */}
       <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
       <MapSelection isOpen={isMapSelectionOpen} onClose={() => setIsMapSelectionOpen(false)} />
+      <RegistrationPrompt isOpen={showRegistrationPrompt} onClose={closeRegistrationPrompt} />
     </div>
   );
 };

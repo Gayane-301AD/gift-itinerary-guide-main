@@ -1,274 +1,210 @@
-import React, { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import React, { useEffect, useRef, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, Star, Navigation, Phone, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { MapPin, Navigation, Phone, Globe, Clock, Star } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import apiClient from "@/lib/api";
 
-interface MapProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface Store {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  phone?: string;
+  website?: string;
+  rating?: number;
+  hours?: string;
+  category?: string;
 }
 
-const Map = ({ isOpen, onClose }: MapProps) => {
+const Map = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const [mapboxToken, setMapboxToken] = useState('');
-  const [isTokenSet, setIsTokenSet] = useState(false);
+  const map = useRef<any>(null);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const { user } = useAuth();
 
-  // Sample gift shops data
-  const giftShops = [
-    {
-      id: 1,
-      name: "Artisan Gifts & More",
-      address: "123 Main Street",
-      rating: 4.8,
-      phone: "(555) 123-4567",
-      hours: "9 AM - 8 PM",
-      coordinates: [-74.006, 40.7128] as [number, number]
-    },
-    {
-      id: 2,
-      name: "The Gift Gallery",
-      address: "456 Oak Avenue", 
-      rating: 4.6,
-      phone: "(555) 234-5678",
-      hours: "10 AM - 7 PM",
-      coordinates: [-74.0065, 40.7130] as [number, number]
-    },
-    {
-      id: 3,
-      name: "Creative Corner",
-      address: "789 Pine Road",
-      rating: 4.9,
-      phone: "(555) 345-6789", 
-      hours: "8 AM - 9 PM",
-      coordinates: [-74.0055, 40.7125] as [number, number]
-    }
-  ];
-
-  const handleTokenSubmit = () => {
-    if (mapboxToken.trim()) {
-      setIsTokenSet(true);
-      initializeMap();
-    }
-  };
-
-  // Try to get token from Supabase secrets first
   useEffect(() => {
-    const checkForToken = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-        if (data?.token) {
-          setMapboxToken(data.token);
-          setIsTokenSet(true);
-        }
-      } catch (error) {
-        // Token not available in secrets, user needs to input manually
-        console.log('Mapbox token not found in secrets, requiring manual input');
-      }
-    };
-    
-    if (isOpen) {
-      checkForToken();
+    if (user) {
+      fetchStores();
+      getUserLocation();
     }
-  }, [isOpen]);
+  }, [user]);
 
-  const initializeMap = () => {
-    if (!mapContainer.current || !mapboxToken) return;
-
-    // Set Mapbox access token
-    mapboxgl.accessToken = mapboxToken;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [-74.006, 40.7128], // NYC coordinates
-      zoom: 14
-    });
-
-    // Add navigation controls
-    map.current.addControl(
-      new mapboxgl.NavigationControl(),
-      'top-right'
-    );
-
-    // Add geolocate control
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+          initializeMap(latitude, longitude);
         },
-        trackUserLocation: true,
-        showUserHeading: true
-      }),
-      'top-right'
-    );
-
-    // Add markers for gift shops
-    giftShops.forEach((shop) => {
-      // Create custom marker element
-      const markerElement = document.createElement('div');
-      markerElement.className = 'w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg cursor-pointer transform hover:scale-110 transition-transform';
-      markerElement.innerHTML = '<svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path></svg>';
-
-      // Create popup content
-      const popupContent = `
-        <div class="p-4 min-w-64">
-          <h3 class="font-bold text-lg mb-2">${shop.name}</h3>
-          <div class="space-y-2 text-sm">
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>
-              </svg>
-              <span>${shop.address}</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-              </svg>
-              <span>${shop.rating} stars</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
-              </svg>
-              <span>${shop.hours}</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
-              </svg>
-              <span>${shop.phone}</span>
-            </div>
-          </div>
-          <button onclick="this.closest('.mapboxgl-popup').remove()" class="mt-3 w-full bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary/90 transition-colors">
-            Get Directions
-          </button>
-        </div>
-      `;
-
-      // Create popup
-      const popup = new mapboxgl.Popup({
-        offset: 25,
-        closeButton: true,
-        closeOnClick: false
-      }).setHTML(popupContent);
-
-      // Create marker and add to map
-      new mapboxgl.Marker(markerElement)
-        .setLngLat(shop.coordinates)
-        .setPopup(popup)
-        .addTo(map.current!);
-    });
+        (error) => {
+          console.error('Error getting location:', error);
+          // Default to a central location if geolocation fails
+          initializeMap(40.7128, -74.0060); // New York coordinates
+        }
+      );
+    } else {
+      console.error('Geolocation is not supported');
+      initializeMap(40.7128, -74.0060);
+    }
   };
 
-  useEffect(() => {
-    if (isOpen && isTokenSet && mapboxToken) {
-      initializeMap();
-    }
+  const initializeMap = (lat: number, lng: number) => {
+    if (!mapContainer.current) return;
 
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
+    // Initialize map (you'll need to add your map library here)
+    // For now, we'll create a simple placeholder
+    mapContainer.current.innerHTML = `
+      <div style="width: 100%; height: 400px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+        <div style="text-align: center;">
+          <MapPin style="font-size: 48px; color: #666; margin-bottom: 16px;" />
+          <p style="color: #666;">Map will be initialized here</p>
+          <p style="color: #999; font-size: 14px;">Location: ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+        </div>
+      </div>
+    `;
+  };
+
+  const fetchStores = async () => {
+    try {
+      setIsLoading(true);
+      const response = await apiClient.getStores();
+      if (response.data) {
+        setStores(response.data);
       }
-    };
-  }, [isOpen, isTokenSet, mapboxToken]);
+    } catch (error) {
+      console.error('Failed to fetch stores:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStoreSelect = (store: Store) => {
+    setSelectedStore(store);
+  };
+
+  const handleNavigate = (store: Store) => {
+    if (userLocation) {
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lng}&destination=${store.latitude},${store.longitude}`;
+      window.open(url, '_blank');
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Please sign in to view the store map.</p>
+      </div>
+    );
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl h-[80vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-4">
-          <DialogTitle className="flex items-center space-x-2">
-            <MapPin className="h-5 w-5 text-primary" />
-            <span>Interactive Store Map</span>
-          </DialogTitle>
-        </DialogHeader>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Store Map
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div ref={mapContainer} className="w-full h-96 rounded-lg overflow-hidden" />
+        </CardContent>
+      </Card>
 
-        {!isTokenSet ? (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <Card className="w-full max-w-md">
-              <CardContent className="p-6 space-y-4">
-                <div className="text-center space-y-2">
-                  <MapPin className="h-12 w-12 text-primary mx-auto" />
-                  <h3 className="text-lg font-semibold">Setup Mapbox Token</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Please enter your Mapbox public token to enable the interactive map
-                  </p>
-                </div>
-                
-                <div className="space-y-3">
-                  <Input
-                    type="password"
-                    placeholder="Enter Mapbox public token..."
-                    value={mapboxToken}
-                    onChange={(e) => setMapboxToken(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleTokenSubmit()}
-                  />
-                  <Button 
-                    onClick={handleTokenSubmit} 
-                    className="w-full"
-                    disabled={!mapboxToken.trim()}
-                  >
-                    Initialize Map
-                  </Button>
-                  <p className="text-xs text-muted-foreground text-center">
-                    Get your token at{' '}
-                    <a 
-                      href="https://mapbox.com/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      mapbox.com
-                    </a>
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {isLoading ? (
+          <div className="col-span-full text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2 text-muted-foreground">Loading stores...</p>
+          </div>
+        ) : stores.length === 0 ? (
+          <div className="col-span-full text-center py-8">
+            <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+            <p className="text-muted-foreground">No stores found nearby</p>
           </div>
         ) : (
-          <div className="flex-1 flex">
-            {/* Sidebar with shop list */}
-            <div className="w-80 border-r bg-background/50 p-4 overflow-y-auto">
-              <h3 className="font-semibold text-lg mb-4">Nearby Gift Shops</h3>
-              <div className="space-y-3">
-                {giftShops.map((shop) => (
-                  <Card key={shop.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="space-y-2">
-                        <h4 className="font-medium">{shop.name}</h4>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          <span>{shop.address}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                          <span>{shop.rating}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span>{shop.hours}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* Map container */}
-            <div className="flex-1 relative">
-              <div ref={mapContainer} className="absolute inset-0" />
-            </div>
-          </div>
+          stores.map((store) => (
+            <Card 
+              key={store.id} 
+              className={`cursor-pointer transition-all hover:shadow-md ${
+                selectedStore?.id === store.id ? 'ring-2 ring-primary' : ''
+              }`}
+              onClick={() => handleStoreSelect(store)}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-semibold text-sm">{store.name}</h3>
+                  {store.rating && (
+                    <div className="flex items-center gap-1">
+                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                      <span className="text-xs">{store.rating}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <p className="text-xs text-muted-foreground mb-3">{store.address}</p>
+                
+                {store.category && (
+                  <Badge variant="secondary" className="text-xs mb-3">
+                    {store.category}
+                  </Badge>
+                )}
+                
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  {store.hours && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      <span>{store.hours}</span>
+                    </div>
+                  )}
+                  
+                  {store.phone && (
+                    <div className="flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      <span>{store.phone}</span>
+                    </div>
+                  )}
+                  
+                  {store.website && (
+                    <div className="flex items-center gap-1">
+                      <Globe className="h-3 w-3" />
+                      <a 
+                        href={store.website} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        Website
+                      </a>
+                    </div>
+                  )}
+                </div>
+                
+                <Button 
+                  size="sm" 
+                  className="w-full mt-3"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleNavigate(store);
+                  }}
+                >
+                  <Navigation className="h-3 w-3 mr-1" />
+                  Navigate
+                </Button>
+              </CardContent>
+            </Card>
+          ))
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 };
 

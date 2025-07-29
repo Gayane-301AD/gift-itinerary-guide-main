@@ -1,223 +1,217 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, X, Loader2, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { Send, Bot, User, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import apiClient from "@/lib/api";
 
 interface Message {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
 }
 
-interface ChatbotProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const Chatbot = ({ isOpen, onClose }: ChatbotProps) => {
-  const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: "Hi! I'm your AI gift advisor. Let's find the perfect gift together! Tell me about the occasion and who you're shopping for.",
-      timestamp: new Date()
-    }
-  ]);
-  const [inputMessage, setInputMessage] = useState("");
+const Chatbot = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    // Scroll to bottom when new messages are added
-    if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
-    }
+    scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+  // Initialize conversation when component mounts
+  useEffect(() => {
+    if (user && !conversationId) {
+      initializeConversation();
+    }
+  }, [user]);
+
+  const initializeConversation = async () => {
+    try {
+      const response = await apiClient.getConversations();
+      if (response.data && response.data.length > 0) {
+        setConversationId(response.data[0].id);
+        // Load existing messages
+        const messagesResponse = await apiClient.getConversationMessages(response.data[0].id);
+        if (messagesResponse.data) {
+          setMessages(messagesResponse.data.map((msg: any) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.created_at)
+          })));
+        }
+      } else {
+        // Create new conversation
+        const createResponse = await apiClient.createConversation({
+          title: "Gift Recommendation Chat"
+        });
+        if (createResponse.data) {
+          setConversationId(createResponse.data.id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to initialize conversation:', error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !conversationId) return;
 
     const userMessage: Message = {
+      id: Date.now().toString(),
       role: 'user',
-      content: inputMessage,
+      content: input,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInputMessage("");
+    setInput("");
     setIsLoading(true);
 
     try {
-      // Prepare conversation history for API
-      const conversationHistory = messages.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-
-      console.log('Sending message to chat-with-ai function:', { inputMessage, conversationHistory });
-
-      const { data, error } = await supabase.functions.invoke('chat-with-ai', {
-        body: {
-          message: inputMessage,
-          conversationHistory
-        }
-      });
-
-      console.log('Function response:', { data, error });
-
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw new Error(error.message || 'Failed to get response from AI service');
+      const response = await apiClient.sendMessage(conversationId, input);
+      
+      if (response.data) {
+        const assistantMessage: Message = {
+          id: response.data.id || Date.now().toString(),
+          role: 'assistant',
+          content: response.data.content || response.data.message || "I'm here to help you find the perfect gift!",
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      } else {
+        // Fallback response if API doesn't return expected format
+        const assistantMessage: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: "I'm here to help you find the perfect gift! Tell me about the occasion, budget, and recipient preferences.",
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
       }
-
-      if (!data || !data.response) {
-        throw new Error('Invalid response from AI service');
-      }
-
-      const aiMessage: Message = {
-        role: 'assistant',
-        content: data.response,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
-      console.error('Error sending message:', error);
-      
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      
-      // Show error toast
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-
-      const errorResponse: Message = {
+      console.error('Chat error:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
         role: 'assistant',
-        content: "I'm sorry, I encountered an error. Please make sure the OpenAI API key is configured correctly and try again.",
+        content: "Sorry, I'm having trouble connecting right now. Please try again later.",
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorResponse]);
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Please sign in to use the AI chat.</p>
+      </div>
+    );
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl h-[100dvh] md:h-[600px] flex flex-col p-0 m-0 md:m-6 rounded-none md:rounded-lg">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="flex items-center space-x-2">
-            <div className="p-2 rounded-lg bg-gradient-to-r from-primary to-primary-glow">
-              <Bot className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span>AI Gift Advisor</span>
-          </DialogTitle>
-          <DialogDescription>
-            Get personalized gift recommendations from our AI assistant
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 flex flex-col px-6 min-h-0">
-          {/* Messages */}
-          <ScrollArea className="flex-1 mb-4" ref={scrollAreaRef}>
-            <div className="space-y-4 py-4">
-              {messages.map((message, index) => (
+    <div className="flex flex-col h-full">
+      <Card className="flex-1 flex flex-col">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            AI Gift Assistant
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col">
+          <ScrollArea className="flex-1 mb-4">
+            <div className="space-y-4">
+              {messages.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
+                  <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <p>Hello! I'm your AI gift assistant. Tell me about the occasion, budget, and recipient preferences to get personalized gift recommendations.</p>
+                </div>
+              )}
+              {messages.map((message) => (
                 <div
-                  key={index}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  key={message.id}
+                  className={`flex gap-3 ${
+                    message.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
                 >
-                  <div className={`flex items-start space-x-2 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                    <div className={`p-2 rounded-full ${message.role === 'user' ? 'bg-primary' : 'bg-muted'}`}>
+                  <div
+                    className={`flex gap-2 max-w-[80%] ${
+                      message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                    }`}
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        message.role === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
                       {message.role === 'user' ? (
-                        <User className="h-4 w-4 text-primary-foreground" />
+                        <User className="h-4 w-4" />
                       ) : (
-                        <Bot className="h-4 w-4 text-muted-foreground" />
+                        <Bot className="h-4 w-4" />
                       )}
                     </div>
-                    <Card className={`${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      <CardContent className="p-3">
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        <span className="text-xs opacity-70 mt-1 block">
-                          {message.timestamp.toLocaleTimeString()}
-                        </span>
-                      </CardContent>
-                    </Card>
+                    <div
+                      className={`rounded-lg px-3 py-2 ${
+                        message.role === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
+                      <p className="text-sm">{message.content}</p>
+                    </div>
                   </div>
                 </div>
               ))}
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="flex items-start space-x-2 max-w-[80%]">
-                    <div className="p-2 rounded-full bg-muted">
-                      <Bot className="h-4 w-4 text-muted-foreground" />
+                <div className="flex gap-3 justify-start">
+                  <div className="flex gap-2">
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                      <Bot className="h-4 w-4" />
                     </div>
-                    <Card className="bg-muted">
-                      <CardContent className="p-3">
-                        <div className="flex items-center space-x-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm">Thinking...</span>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div className="rounded-lg px-3 py-2 bg-muted">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Thinking...</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
-
-          {/* Input */}
-          <div className="pb-3 bg-background border-t md:border-t-0 md:bg-transparent">
-            <div className="flex items-center space-x-2">
-              <Input
-                ref={inputRef}
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask about gift ideas..."
-                disabled={isLoading}
-                className="flex-1"
-              />
-              <Button 
-                onClick={sendMessage} 
-                disabled={!inputMessage.trim() || isLoading}
-                size="icon"
-                className="shrink-0"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Tell me about the occasion, budget, and recipient..."
+              disabled={isLoading}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={isLoading || !input.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

@@ -14,7 +14,7 @@ function generateToken() {
 // Register new user
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, full_name, nickname, phone, date_of_birth, gender } = req.body;
+    const { username, email, password, full_name, phone, date_of_birth, gender } = req.body;
     
     if (!email || !password || !username || !full_name) {
       return res.status(400).json({ error: 'Required fields missing' });
@@ -24,9 +24,9 @@ router.post('/register', async (req, res) => {
     const verification_token = generateToken();
 
     const result = await pool.query(
-      `INSERT INTO users (username, email, password_hash, full_name, nickname, phone, date_of_birth, gender, verification_token) 
+      `INSERT INTO users (username, email, password_hash, full_name, phone, date_of_birth, gender, verification_token, is_verified) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, email, username, full_name, role`,
-      [username, email, hash, full_name, nickname, phone, date_of_birth, gender, verification_token]
+      [username, email, hash, full_name, phone, date_of_birth, gender, verification_token, true] // Auto-verify for development
     );
 
     // Create default subscription record
@@ -35,10 +35,11 @@ router.post('/register', async (req, res) => {
       [result.rows[0].id, email, 'Free', false]
     );
 
-    await sendVerificationEmail(email, verification_token);
+    // Temporarily skip email sending for development
+    // await sendVerificationEmail(email, verification_token);
     
     res.status(201).json({ 
-      message: 'Registration successful. Please check your email to verify your account.',
+      message: 'Registration successful. Account is ready to use.',
       user: result.rows[0]
     });
   } catch (err) {
@@ -73,9 +74,10 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    if (!user.is_verified) {
-      return res.status(403).json({ error: 'Email not verified. Please check your email for verification link.' });
-    }
+    // Temporarily bypass email verification for development
+    // if (!user.is_verified) {
+    //   return res.status(403).json({ error: 'Email not verified. Please check your email for verification link.' });
+    // }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
@@ -100,7 +102,6 @@ router.post('/login', async (req, res) => {
         email: user.email,
         username: user.username,
         full_name: user.full_name,
-        nickname: user.nickname,
         role: user.role,
         subscription_tier: user.subscription_tier,
         subscribed: user.subscribed,
@@ -111,6 +112,36 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Get current user
+router.get('/me', authenticateJWT, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT u.*, s.subscription_tier, s.subscribed FROM users u LEFT JOIN subscriptions s ON u.id = s.user_id WHERE u.id = $1',
+      [req.user.id]
+    );
+    
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      full_name: user.full_name,
+      role: user.role,
+      subscription_tier: user.subscription_tier,
+      subscribed: user.subscribed,
+      daily_ai_queries_used: user.daily_ai_queries_used,
+      is_verified: user.is_verified
+    });
+  } catch (err) {
+    console.error('Get current user error:', err);
+    res.status(500).json({ error: 'Failed to get user information' });
   }
 });
 

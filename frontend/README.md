@@ -1,73 +1,54 @@
-# Welcome to your Lovable project
+# WhatToCarry Frontend
 
-## Project info
+## Setup Instructions
 
-**URL**: https://lovable.dev/projects/b89d8191-2ab0-4e24-8a53-1d942d0179e2
+### 1. Environment Configuration
 
-## How can I edit this code?
+Create a `.env` file in the frontend directory with the following variables:
 
-There are several ways of editing your application.
+```env
+# Backend API Configuration
+VITE_BACKEND_URL=http://localhost:4000
 
-**Use Lovable**
+# Supabase Configuration (for future use if needed)
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b89d8191-2ab0-4e24-8a53-1d942d0179e2) and start prompting.
+### 2. Install Dependencies
 
-Changes made via Lovable will be committed automatically to this repo.
+```bash
+npm install
+```
 
-**Use your preferred IDE**
+### 3. Start Development Server
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Authentication
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The frontend now uses the backend API for authentication instead of Supabase. 
 
-**Use GitHub Codespaces**
+### Test Users
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+After running the database seed, you can use these test accounts:
 
-## What technologies are used for this project?
+- **Admin User**: `admin@whattocarry.com` / `admin123`
+- **Demo User**: `user@example.com` / `user123`
 
-This project is built with:
+### Features
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- ✅ Login/Logout functionality
+- ✅ User registration
+- ✅ JWT token management
+- ✅ Protected routes
+- ✅ User profile management
 
-## How can I deploy this project?
+## Development Notes
 
-Simply open [Lovable](https://lovable.dev/projects/b89d8191-2ab0-4e24-8a53-1d942d0179e2) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- Email verification is temporarily bypassed for development
+- All API calls go through the backend at `http://localhost:4000`
+- Authentication tokens are stored in localStorage
+- The backend must be running for authentication to work

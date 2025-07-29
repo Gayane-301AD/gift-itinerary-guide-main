@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateJWT } from './auth.js';
-import fetch from 'node-fetch';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import pool from '../db.js';
 
 const router = express.Router();
@@ -157,51 +157,53 @@ router.post('/chat', authenticateJWT, async (req, res) => {
     // Add user message to history
     conversationHistory.push({ role: 'user', content: message });
     
-    // Call OpenAI API
+    // Call Gemma API
     const startTime = Date.now();
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a helpful gift recommendation assistant for WhatToCarry. 
-            Help users find the perfect gifts based on their occasion, budget, and recipient preferences.
-            Provide thoughtful, personalized suggestions and ask clarifying questions when needed.
-            Keep responses concise but helpful.`
-          },
-          ...conversationHistory
-        ],
-        max_tokens: 500,
-        temperature: 0.7
-      })
-    });
     
-    const responseTime = Date.now() - startTime;
-    
-    if (!openaiResponse.ok) {
-      throw new Error(`OpenAI API error: ${openaiResponse.status}`);
+    if (!process.env.GEMMA_API_KEY) {
+      throw new Error('GEMMA_API_KEY not configured');
     }
     
-    const data = await openaiResponse.json();
-    const aiResponse = data.choices[0].message.content;
-    const tokensUsed = data.usage.total_tokens;
+    const genAI = new GoogleGenerativeAI(process.env.GEMMA_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    
+    // Build conversation context for Gemma
+    const systemPrompt = `You are a helpful gift recommendation assistant for WhatToCarry. 
+    Help users find the perfect gifts based on their occasion, budget, and recipient preferences.
+    Provide thoughtful, personalized suggestions and ask clarifying questions when needed.
+    Keep responses concise but helpful.`;
+    
+    // Format conversation history for Gemma
+    let conversationText = systemPrompt + "\n\n";
+    conversationHistory.forEach(msg => {
+      if (msg.role === 'user') {
+        conversationText += `User: ${msg.content}\n`;
+      } else if (msg.role === 'assistant') {
+        conversationText += `Assistant: ${msg.content}\n`;
+      }
+    });
+    
+    const result = await model.generateContent(conversationText);
+    const responseTime = Date.now() - startTime;
+    
+    if (!result.response) {
+      throw new Error('No response from Gemma API');
+    }
+    
+    const aiResponse = result.response.text();
+    const tokensUsed = 0; // Gemma doesn't provide token count in the same way, estimate based on content length
+    const estimatedTokens = Math.ceil((conversationText.length + aiResponse.length) / 4);
     
     // Save user message
     await pool.query(
       'INSERT INTO chat_messages (conversation_id, user_id, role, content, tokens_used) VALUES ($1, $2, $3, $4, $5)',
-      [conversation.id, userId, 'user', message, tokensUsed / 2] // Approximate user tokens
+      [conversation.id, userId, 'user', message, estimatedTokens / 2] // Approximate user tokens
     );
     
     // Save AI response
     await pool.query(
       'INSERT INTO chat_messages (conversation_id, user_id, role, content, tokens_used) VALUES ($1, $2, $3, $4, $5)',
-      [conversation.id, userId, 'assistant', aiResponse, tokensUsed / 2] // Approximate AI tokens
+      [conversation.id, userId, 'assistant', aiResponse, estimatedTokens / 2] // Approximate AI tokens
     );
     
     // Update conversation timestamp
@@ -219,13 +221,13 @@ router.post('/chat', authenticateJWT, async (req, res) => {
     // Log API usage
     await pool.query(
       'INSERT INTO api_usage (user_id, api_type, endpoint, tokens_used, response_time_ms, success) VALUES ($1, $2, $3, $4, $5, $6)',
-      [userId, 'openai', 'chat/completions', tokensUsed, responseTime, true]
+      [userId, 'gemma', 'generateContent', estimatedTokens, responseTime, true]
     );
     
     res.json({ 
       response: aiResponse,
       conversation_id: conversation.id,
-      tokens_used: tokensUsed,
+      tokens_used: estimatedTokens,
       daily_queries_remaining: dailyLimit - (user.daily_ai_queries_used + 1)
     });
   } catch (err) {
@@ -235,7 +237,7 @@ router.post('/chat', authenticateJWT, async (req, res) => {
     try {
       await pool.query(
         'INSERT INTO api_usage (user_id, api_type, endpoint, success, error_message) VALUES ($1, $2, $3, $4, $5)',
-        [req.user.id, 'openai', 'chat/completions', false, err.message]
+        [req.user.id, 'gemma', 'generateContent', false, err.message]
       );
     } catch (logError) {
       console.error('Failed to log API usage:', logError);
@@ -269,7 +271,7 @@ router.get('/usage', authenticateJWT, async (req, res) => {
          AVG(response_time_ms) as avg_response_time,
          COUNT(CASE WHEN success = false THEN 1 END) as failed_requests
        FROM api_usage 
-       WHERE user_id = $1 AND api_type = 'openai'`,
+       WHERE user_id = $1 AND api_type = 'gemma'`,
       [userId]
     );
     

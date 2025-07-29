@@ -3,10 +3,13 @@ import { ArrowRight, Sparkles, Play, Star, Zap, Heart, Bell } from "lucide-react
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import Chatbot from "./Chatbot";
+import RegistrationPrompt from "./RegistrationPrompt";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 const Hero = () => {
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const { requireAuth, showRegistrationPrompt, closeRegistrationPrompt } = useAuthGuard();
   const { t } = useTranslation();
   return (
     <section className="relative pt-24 pb-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-background via-primary/5 to-muted/30 overflow-hidden">
@@ -65,7 +68,7 @@ const Hero = () => {
               variant="hero" 
               size="lg" 
               className="text-base px-8 group relative overflow-hidden hover:shadow-elegant hover:-translate-y-1 transition-all duration-300"
-              onClick={() => setIsChatbotOpen(true)}
+              onClick={() => requireAuth(() => setIsChatbotOpen(true))}
             >
               <span className="relative z-10">{t('hero.ctaStart')}</span>
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
@@ -122,6 +125,9 @@ const Hero = () => {
       
       {/* Chatbot */}
       <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
+      
+      {/* Registration Prompt */}
+      <RegistrationPrompt isOpen={showRegistrationPrompt} onClose={closeRegistrationPrompt} />
     </section>
   );
 };

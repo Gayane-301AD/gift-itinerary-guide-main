@@ -10,8 +10,8 @@ async function runMigrations() {
   try {
     console.log('🔄 Starting database migration...');
     
-    // Read the schema file
-    const schemaPath = path.join(__dirname, '../../database/schema.sql');
+    // Read the complete schema file
+    const schemaPath = path.join(__dirname, '../../database/schema_complete.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
     
     // Split the schema into individual statements
@@ -51,7 +51,7 @@ async function runMigrations() {
 }
 
 // Run migration if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
   runMigrations();
 }
 

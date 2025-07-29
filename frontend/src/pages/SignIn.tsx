@@ -14,16 +14,16 @@ const SignIn = () => {
     password: ""
   });
   const navigate = useNavigate();
-  const { signIn, isLoading, user } = useAuth();
+  const { signIn, isLoading, user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
 
   // Redirect if already logged in
   useEffect(() => {
-    if (user) {
+    if (isAuthenticated) {
       navigate("/");
     }
-  }, [user, navigate]);
+  }, [isAuthenticated, navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -49,7 +49,7 @@ const SignIn = () => {
     if (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to sign in",
+        description: error || "Failed to sign in",
         variant: "destructive"
       });
     } else {
