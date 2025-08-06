@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Gift, Menu, X, User, Globe } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Gift, Menu, X, User, Globe, CreditCard, UserCircle } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,15 +84,88 @@ const Navigation = () => {
             {user ? <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
-                    <User className="h-5 w-5" />
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.full_name || user.email} />
+                      <AvatarFallback>
+                        {(user.user_metadata?.full_name || user.email)?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="flex flex-col items-start">
-                    <span className="font-medium">{user.user_metadata?.full_name || user.email?.split('@')[0]}</span>
-                    <span className="text-sm text-muted-foreground">{user.email}</span>
+                <DropdownMenuContent align="end" className="w-64">
+                  {/* User Info Header */}
+                  <div className="px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.full_name || user.email} />
+                        <AvatarFallback>
+                          {(user.user_metadata?.full_name || user.email)?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {user.email}
+                        </p>
+                        {user.user_metadata?.username && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            @{user.user_metadata.username}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <Badge variant="secondary" className="text-xs">
+                        {user.user_metadata?.subscription_tier || 'Free'} Plan
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* User Details */}
+                  <div className="px-3 py-2 space-y-1">
+                    {user.user_metadata?.phone && (
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <span className="w-12 shrink-0">Phone:</span>
+                        <span>{user.user_metadata.phone}</span>
+                      </div>
+                    )}
+                    {user.user_metadata?.date_of_birth && (
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <span className="w-12 shrink-0">Born:</span>
+                        <span>{new Date(user.user_metadata.date_of_birth).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    {user.user_metadata?.gender && (
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <span className="w-12 shrink-0">Gender:</span>
+                        <span>{user.user_metadata.gender}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  {/* Menu Items */}
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="flex items-center">
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      <span>Profile Settings</span>
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout}>
+                  <DropdownMenuItem asChild>
+                    <Link to="/subscription" className="flex items-center">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      <span>Subscription</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
                     {t('navigation.signOut')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -149,11 +224,46 @@ const Navigation = () => {
               </a>
               <div className="pt-4 pb-2 space-y-2">
                 {user ? <>
-                    <div className="px-3 py-2 text-sm">
-                      <div className="font-medium">{user.user_metadata?.full_name || user.email?.split('@')[0]}</div>
-                      <div className="text-muted-foreground">{user.email}</div>
+                    <div className="px-3 py-3 bg-muted/30 rounded-lg mx-2">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.full_name || user.email} />
+                          <AvatarFallback>
+                            {(user.user_metadata?.full_name || user.email)?.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {user.email}
+                          </div>
+                          {user.user_metadata?.username && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              @{user.user_metadata.username}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {user.user_metadata?.subscription_tier || 'Free'} Plan
+                      </Badge>
                     </div>
-                    <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+                    
+                    <Button variant="ghost" className="w-full justify-start text-left" asChild>
+                      <Link to="/profile" onClick={() => setIsMenuOpen(false)}>
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        Profile Settings
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start" asChild>
+                      <Link to="/subscription" onClick={() => setIsMenuOpen(false)}>
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Subscription
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start text-red-600 hover:text-red-600" onClick={handleLogout}>
                       {t('navigation.signOut')}
                     </Button>
                   </> : <>

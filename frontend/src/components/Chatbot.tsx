@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, Loader2 } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Send, Bot, User, Loader2, MessageSquare, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslation } from "@/hooks/useTranslation";
 import apiClient from "@/lib/api";
 
 interface Message {
@@ -14,12 +16,19 @@ interface Message {
   timestamp: Date;
 }
 
-const Chatbot = () => {
+interface ChatbotProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const { user } = useAuth();
+  const { language } = useLanguage();
+  const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -82,13 +91,13 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.sendMessage(conversationId, input);
+      const response = await apiClient.sendMessage(input, conversationId, language);
       
       if (response.data) {
         const assistantMessage: Message = {
           id: response.data.id || Date.now().toString(),
           role: 'assistant',
-          content: response.data.content || response.data.message || "I'm here to help you find the perfect gift!",
+          content: response.data.response || response.data.content || response.data.message || "I'm here to help you find the perfect gift!",
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
@@ -118,100 +127,195 @@ const Chatbot = () => {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Please sign in to use the AI chat.</p>
-      </div>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[80vh] p-0">
+          <div className="h-[600px] flex flex-col items-center justify-center bg-gradient-to-br from-background to-muted/20 p-8">
+            <div className="text-center max-w-md">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                <MessageSquare className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">{t('chatbot.welcome')}</h3>
+              <p className="text-muted-foreground mb-6">{t('chatbot.signInPrompt')}</p>
+              <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+                {t('chatbot.signInButton')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <Card className="flex-1 flex flex-col">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            AI Gift Assistant
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 flex flex-col">
-          <ScrollArea className="flex-1 mb-4">
-            <div className="space-y-4">
-              {messages.length === 0 && (
-                <div className="text-center text-muted-foreground py-8">
-                  <Bot className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p>Hello! I'm your AI gift assistant. Tell me about the occasion, budget, and recipient preferences to get personalized gift recommendations.</p>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[80vh] p-0">
+        <div className="h-[600px] flex flex-col bg-background">
+      {/* Header */}
+      <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-foreground">{t('chatbot.welcome')}</h2>
+              <p className="text-xs text-muted-foreground">Powered by OpenAI</p>
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {messages.length > 0 && `${messages.length} messages`}
+          </div>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="max-w-4xl mx-auto p-4">
+            {/* Welcome Message */}
+            {messages.length === 0 && (
+              <div className="text-center pt-24 pb-12">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                  <Sparkles className="h-10 w-10 text-white" />
                 </div>
-              )}
+                <h3 className="text-2xl font-semibold text-foreground mb-4">{t('chatbot.welcome')}</h3>
+                <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
+                  {t('chatbot.welcomeMessage')}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 max-w-2xl mx-auto">
+                  <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
+                    <div className="text-sm font-medium text-foreground mb-1">{t('chatbot.occasionTitle')}</div>
+                    <div className="text-xs text-muted-foreground">{t('chatbot.occasionDescription')}</div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
+                    <div className="text-sm font-medium text-foreground mb-1">{t('chatbot.budgetTitle')}</div>
+                    <div className="text-xs text-muted-foreground">{t('chatbot.budgetDescription')}</div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
+                    <div className="text-sm font-medium text-foreground mb-1">{t('chatbot.recipientTitle')}</div>
+                    <div className="text-xs text-muted-foreground">{t('chatbot.recipientDescription')}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Chat Messages */}
+            <div className="space-y-6">
               {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-3 ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  <div
-                    className={`flex gap-2 max-w-[80%] ${
-                      message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                    }`}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        message.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
-                      }`}
-                    >
-                      {message.role === 'user' ? (
-                        <User className="h-4 w-4" />
+                <div key={message.id} className="group">
+                  <div className={`flex gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      {message.role === 'assistant' ? (
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                          <Bot className="h-4 w-4 text-white" />
+                        </div>
                       ) : (
-                        <Bot className="h-4 w-4" />
+                        <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                          <User className="h-4 w-4 text-white" />
+                        </div>
                       )}
                     </div>
-                    <div
-                      className={`rounded-lg px-3 py-2 ${
-                        message.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
-                      }`}
-                    >
-                      <p className="text-sm">{message.content}</p>
+
+                    {/* Message Content */}
+                    <div className={`flex-1 max-w-3xl ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+                      <div className="text-xs text-muted-foreground mb-1 px-1">
+                        {message.role === 'assistant' ? 'AI Assistant' : 'You'}
+                      </div>
+                      <div
+                        className={`inline-block p-4 rounded-2xl shadow-sm border ${
+                          message.role === 'user'
+                            ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white border-blue-500/20'
+                            : 'bg-background border-border/50 text-foreground'
+                        } ${message.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}`}
+                      >
+                        <div className={`prose prose-sm max-w-none ${
+                          message.role === 'user' ? 'prose-invert' : 'prose-neutral dark:prose-invert'
+                        }`}>
+                          <p className="whitespace-pre-wrap break-words leading-relaxed">
+                            {message.content}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 px-1">
+                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
+
+              {/* Loading State */}
               {isLoading && (
-                <div className="flex gap-3 justify-start">
-                  <div className="flex gap-2">
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                      <Bot className="h-4 w-4" />
+                <div className="group">
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <Bot className="h-4 w-4 text-white" />
+                      </div>
                     </div>
-                    <div className="rounded-lg px-3 py-2 bg-muted">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">Thinking...</span>
+                    <div className="flex-1">
+                      <div className="text-xs text-muted-foreground mb-1 px-1">AI Assistant</div>
+                      <div className="inline-block p-4 rounded-2xl rounded-bl-md bg-background border border-border/50">
+                        <div className="flex items-center gap-3">
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                            <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                            <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce"></div>
+                          </div>
+                          <span className="text-sm text-muted-foreground">Thinking...</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Tell me about the occasion, budget, and recipient..."
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <Button type="submit" disabled={isLoading || !input.trim()}>
-              <Send className="h-4 w-4" />
-            </Button>
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Input Area */}
+      <div className="border-t border-border/50 bg-background/80 backdrop-blur-sm p-4">
+        <div className="max-w-4xl mx-auto">
+          <form onSubmit={handleSubmit} className="flex gap-3">
+            <div className="flex-1 relative">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={t('chatbot.placeholder')}
+                disabled={isLoading}
+                className="flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+              />
+              <Button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                size="sm"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </form>
-        </CardContent>
-      </Card>
+          <div className="text-xs text-muted-foreground text-center mt-2">
+            {t('chatbot.disclaimer')}
+          </div>
+        </div>
+      </div>
     </div>
+  </DialogContent>
+</Dialog>
   );
 };
 

@@ -206,5 +206,162 @@ export const en = {
       },
       selectButton: "Select Plan"
     }
+  },
+
+  // Subscription Page
+  subscription: {
+    title: "Subscription Management",
+    subtitle: "Manage your subscription and billing preferences",
+    current: {
+      title: "Current Subscription",
+      description: "Your current plan and usage",
+      enjoying: "Enjoying unlimited access to all features",
+      limited: "Limited access with upgrade opportunities",
+      perMonth: "per month",
+      forever: "forever"
+    },
+    plans: {
+      title: "Available Plans",
+      description: "Choose the plan that best fits your needs",
+      free: {
+        name: "Free",
+        description: "Perfect for getting started with basic features",
+        features: [
+          "5 AI gift recommendations per day",
+          "Basic calendar features",
+          "Store map access",
+          "Email notifications",
+          "Basic support"
+        ]
+      },
+      pro: {
+        name: "Pro",
+        description: "Best for serious gift-givers who need unlimited access",
+        features: [
+          "Unlimited AI gift recommendations",
+          "Advanced calendar with Google sync",
+          "Premium store map with directions",
+          "Priority notifications",
+          "Gift tracking and favorites",
+          "Exclusive gift suggestions",
+          "Priority support",
+          "Advanced analytics"
+        ]
+      }
+    },
+    buttons: {
+      currentPlan: "Current Plan",
+      upgradeToPro: "Upgrade to Pro",
+      downgradeToFree: "Downgrade to Free",
+      confirmChange: "Confirm Change",
+      processing: "Processing..."
+    },
+    changePrompt: {
+      title: "Ready to change your plan?",
+      downgradeWarning: "Downgrading will limit your access to premium features.",
+      upgradeInfo: "Upgrading will give you immediate access to all Pro features."
+    },
+    billing: {
+      title: "Billing Information",
+      description: "Your billing details and payment history",
+      nextBilling: "Next billing date:",
+      paymentMethod: "Payment method:",
+      amount: "Amount:",
+      updatePayment: "Update Payment Method",
+      downloadInvoice: "Download Invoice"
+    },
+    messages: {
+      noChange: "No Change",
+      alreadyOnPlan: "You're already on this plan.",
+      subscriptionUpdated: "Subscription Updated",
+      switchSuccess: "Successfully switched to {{planName}} plan.",
+      updateError: "Failed to update subscription. Please try again."
+    }
+  },
+
+  // Profile Page
+  profile: {
+    title: "Profile Settings",
+    subtitle: "Manage your account settings and preferences",
+    information: {
+      title: "Profile Information",
+      description: "Update your personal information and profile picture"
+    },
+    fields: {
+      username: "Username",
+      fullName: "Full Name",
+      email: "Email",
+      phone: "Phone",
+      dateOfBirth: "Date of Birth",
+      gender: "Gender",
+      currentPassword: "Current Password",
+      newPassword: "New Password",
+      confirmPassword: "Confirm New Password"
+    },
+    placeholders: {
+      username: "Enter username",
+      fullName: "Enter full name",
+      email: "Enter email",
+      phone: "Enter phone number",
+      currentPassword: "Enter current password",
+      newPassword: "Enter new password",
+      confirmPassword: "Confirm new password"
+    },
+    genderOptions: {
+      male: "Male",
+      female: "Female",
+      other: "Other",
+      preferNotToSay: "Prefer not to say"
+    },
+    password: {
+      title: "Change Password",
+      description: "Update your password to keep your account secure"
+    },
+    buttons: {
+      saveChanges: "Save Changes",
+      saving: "Saving...",
+      updatePassword: "Update Password",
+      updating: "Updating..."
+    },
+    messages: {
+      avatarUploadSuccess: "Profile picture updated successfully",
+      avatarUploadError: "Failed to update profile picture",
+      profileUpdateSuccess: "Profile updated successfully",
+      profileUpdateError: "Failed to update profile",
+      passwordUpdateSuccess: "Password updated successfully",
+      passwordUpdateError: "Failed to update password",
+      passwordMismatch: "Passwords do not match",
+      passwordTooShort: "Password must be at least 6 characters"
+    }
+  },
+
+  // Common UI Elements
+  common: {
+    loading: "Loading...",
+    error: "Error",
+    success: "Success",
+    save: "Save",
+    cancel: "Cancel",
+    back: "Back",
+    next: "Next",
+    previous: "Previous",
+    close: "Close",
+    open: "Open"
+  },
+
+  // Chatbot
+  chatbot: {
+    welcome: "AI Gift Assistant",
+    welcomeMessage: "I'm here to help you find the perfect gift! Tell me about:",
+    occasionTitle: "🎉 Occasion",
+    occasionDescription: "Birthday, anniversary, holiday",
+    budgetTitle: "💰 Budget", 
+    budgetDescription: "Your price range preference",
+    recipientTitle: "👤 Recipient",
+    recipientDescription: "Their interests & preferences",
+    placeholder: "Tell me about the occasion, budget, and recipient...",
+    disclaimer: "AI can make mistakes. Consider checking important information.",
+    signInPrompt: "Please sign in to start chatting with your AI gift recommendation assistant.",
+    signInButton: "Sign In to Chat"
   }
 };

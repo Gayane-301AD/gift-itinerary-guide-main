@@ -119,24 +119,36 @@ class ApiClient {
 
   // AI Chat methods
   async getConversations(): Promise<ApiResponse<any[]>> {
-    return this.request<any[]>('/ai/conversations');
+    const response = await this.request<{ conversations: any[] }>('/ai/conversations');
+    if (response.data) {
+      return { data: response.data.conversations };
+    }
+    return { error: response.error };
   }
 
   async createConversation(data: { title: string }): Promise<ApiResponse<any>> {
-    return this.request<any>('/ai/conversations', {
+    const response = await this.request<{ conversation: any }>('/ai/conversations', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    if (response.data) {
+      return { data: response.data.conversation };
+    }
+    return { error: response.error };
   }
 
   async getConversationMessages(conversationId: string): Promise<ApiResponse<any[]>> {
-    return this.request<any[]>(`/ai/conversations/${conversationId}/messages`);
+    const response = await this.request<{ messages: any[] }>(`/ai/conversations/${conversationId}/messages`);
+    if (response.data) {
+      return { data: response.data.messages };
+    }
+    return { error: response.error };
   }
 
-  async sendMessage(message: string, conversationId?: string): Promise<ApiResponse<any>> {
+  async sendMessage(message: string, conversationId?: string, language?: string): Promise<ApiResponse<any>> {
     return this.request<any>('/ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, conversationId }),
+      body: JSON.stringify({ message, conversationId, language }),
     });
   }
 
@@ -222,14 +234,56 @@ class ApiClient {
     });
   }
 
-  // Subscription
-  async getSubscription(): Promise<ApiResponse<any>> {
-    return this.request<any>('/subscribers/subscription');
+  async updatePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<void>> {
+    return this.request<void>('/users/password', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
   }
 
-  async updateSubscription(subscriptionData: { subscription_tier: string; subscribed: boolean }): Promise<ApiResponse<any>> {
-    return this.request<any>('/subscribers/subscription', {
-      method: 'PUT',
+  async uploadAvatar(file: File): Promise<ApiResponse<{ avatar_url: string }>> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    const url = `${this.baseURL}/users/avatar`;
+    const headers: Record<string, string> = {};
+
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          error: data.error || `HTTP ${response.status}: ${response.statusText}`,
+        };
+      }
+
+      return { data };
+    } catch (error) {
+      console.error('Avatar upload failed:', error);
+      return {
+        error: error instanceof Error ? error.message : 'Network error',
+      };
+    }
+  }
+
+  // Subscription
+  async getSubscription(): Promise<ApiResponse<any>> {
+    return this.request<any>('/subscribers');
+  }
+
+  async updateSubscription(subscriptionData: { subscription_tier: string }): Promise<ApiResponse<any>> {
+    return this.request<any>('/subscribers', {
+      method: 'POST',
       body: JSON.stringify(subscriptionData),
     });
   }

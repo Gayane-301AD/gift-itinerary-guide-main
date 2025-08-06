@@ -96,7 +96,7 @@ router.delete('/conversations/:id', authenticateJWT, async (req, res) => {
 // Chat with AI
 router.post('/chat', authenticateJWT, async (req, res) => {
   try {
-    const { message, conversationId } = req.body;
+    const { message, conversationId, language } = req.body;
     const userId = req.user.id;
     
     if (!message) {
@@ -167,11 +167,23 @@ router.post('/chat', authenticateJWT, async (req, res) => {
     const genAI = new GoogleGenerativeAI(process.env.GEMMA_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
-    // Build conversation context for Gemma
+    // Build conversation context for Gemma with language awareness
+    const languageMap = {
+      'English': 'English',
+      'Armenian': 'Armenian (հայերեն)',
+      'Russian': 'Russian (русский)'
+    };
+    
+    const userLanguage = languageMap[language] || 'English';
+    
     const systemPrompt = `You are a helpful gift recommendation assistant for WhatToCarry. 
     Help users find the perfect gifts based on their occasion, budget, and recipient preferences.
     Provide thoughtful, personalized suggestions and ask clarifying questions when needed.
-    Keep responses concise but helpful.`;
+    Keep responses concise but helpful.
+    
+    IMPORTANT: Always respond in ${userLanguage} regardless of what language the user writes in.
+    If the user writes in a different language, still respond in ${userLanguage}.
+    Be friendly and helpful while maintaining the ${userLanguage} language throughout the conversation.`;
     
     // Format conversation history for Gemma
     let conversationText = systemPrompt + "\n\n";
