@@ -1,0 +1,3 @@
+[33mabbc97b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Enhance backend schema with new tables for admin audit logs, system health, user sessions, email templates, and email deliveries. Update .gitignore to exclude .env files and add validation for Supabase client configuration in the frontend.
+[33ma1a2368[m added backend
+[33m4fa21c4[m first commit

@@ -101,6 +101,25 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
+      } else if (response.error) {
+        // Handle specific error cases
+        let errorContent = "Sorry, I'm having trouble connecting right now. Please try again later.";
+        
+        if (response.error.includes('Daily AI query limit reached')) {
+          errorContent = "You've reached your daily AI query limit. Consider upgrading to Pro for unlimited queries!";
+        } else if (response.error.includes('AI service is not properly configured')) {
+          errorContent = "The AI service is temporarily unavailable. Please contact support for assistance.";
+        } else if (response.error.includes('GEMMA_API_KEY')) {
+          errorContent = "AI service is not available. Please contact support.";
+        }
+        
+        const errorMessage: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: errorContent,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
       } else {
         // Fallback response if API doesn't return expected format
         const assistantMessage: Message = {
@@ -113,10 +132,22 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
       }
     } catch (error) {
       console.error('Chat error:', error);
+      
+      // Provide more specific error handling
+      let errorContent = "Sorry, I'm having trouble connecting right now. Please try again later.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('fetch')) {
+          errorContent = "Unable to connect to the server. Please check your internet connection and try again.";
+        } else if (error.message.includes('timeout')) {
+          errorContent = "The request timed out. Please try again.";
+        }
+      }
+      
       const errorMessage: Message = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: "Sorry, I'm having trouble connecting right now. Please try again later.",
+        content: errorContent,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);

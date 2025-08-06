@@ -16,6 +16,10 @@ interface User {
   subscribed: boolean;
   daily_ai_queries_used: number;
   is_verified: boolean;
+  profile_image?: string;
+  phone?: string;
+  date_of_birth?: string;
+  gender?: string;
 }
 
 interface AuthResponse {
@@ -114,7 +118,13 @@ class ApiClient {
   }
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
-    return this.request<User>('/auth/me');
+    console.log('API Client: Getting current user, token exists:', !!this.token);
+    const response = await this.request<{ user: User }>('/users/profile');
+    console.log('API Client: getCurrentUser response:', response);
+    if (response.data) {
+      return { data: response.data.user };
+    }
+    return { error: response.error };
   }
 
   // AI Chat methods
@@ -227,11 +237,22 @@ class ApiClient {
   }
 
   // User profile
-  async updateProfile(profileData: Partial<User>): Promise<ApiResponse<User>> {
-    return this.request<User>('/users/profile', {
+  async updateProfile(profileData: any): Promise<ApiResponse<User>> {
+    console.log('API Client: Updating profile with data:', profileData);
+    console.log('API Client: Token exists:', !!this.token);
+    console.log('API Client: Making request to /users/update');
+    
+    const response = await this.request<{ message: string; user: User }>('/users/update', {
       method: 'PUT',
       body: JSON.stringify(profileData),
     });
+    
+    console.log('API Client: Profile update response:', response);
+    
+    if (response.data) {
+      return { data: response.data.user, message: response.data.message };
+    }
+    return { error: response.error };
   }
 
   async updatePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<void>> {

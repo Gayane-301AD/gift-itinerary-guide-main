@@ -11,7 +11,7 @@ router.post('/', authenticateJWT, async (req, res) => {
   const { id: user_id, email } = req.user;
   try {
     await pool.query(
-      `INSERT INTO subscribers (user_id, email, subscription_tier, subscribed, updated_at)
+      `INSERT INTO subscriptions (user_id, email, subscription_tier, subscribed, updated_at)
        VALUES ($1, $2, $3, $4, NOW())
        ON CONFLICT (user_id) DO UPDATE SET subscription_tier = $3, subscribed = $4, updated_at = NOW()`,
       [user_id, email, subscription_tier, subscription_tier === 'Pro']
@@ -24,7 +24,7 @@ router.post('/', authenticateJWT, async (req, res) => {
 
 router.get('/', authenticateJWT, async (req, res) => {
   const { id: user_id } = req.user;
-  const result = await pool.query('SELECT * FROM subscribers WHERE user_id = $1', [user_id]);
+  const result = await pool.query('SELECT * FROM subscriptions WHERE user_id = $1', [user_id]);
   res.json(result.rows[0] || {});
 });
 

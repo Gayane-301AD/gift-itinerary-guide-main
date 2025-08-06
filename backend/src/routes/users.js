@@ -36,11 +36,14 @@ const upload = multer({
   }
 });
 
-// Get current user profile
-router.get('/me', authenticateJWT, async (req, res) => {
+// Get current user profile  
+router.get('/profile', authenticateJWT, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.*, s.subscription_tier, s.subscribed, s.subscription_end
+      `SELECT u.id, u.username, u.full_name, u.email, u.phone, u.date_of_birth, u.gender, 
+              u.profile_image_url as profile_image, u.role, u.is_verified, u.daily_ai_queries_used, 
+              u.last_query_reset_date, u.created_at, u.updated_at,
+              s.subscription_tier, s.subscribed, s.subscription_end
        FROM users u 
        LEFT JOIN subscriptions s ON u.id = s.user_id 
        WHERE u.id = $1`,
@@ -58,6 +61,7 @@ router.get('/me', authenticateJWT, async (req, res) => {
     delete user.reset_password_token;
     delete user.reset_password_expires;
 
+    console.log('Returning user profile:', user);
     res.json({ user });
   } catch (err) {
     console.error('Get profile error:', err);
@@ -66,9 +70,16 @@ router.get('/me', authenticateJWT, async (req, res) => {
 });
 
 // Update user profile
-router.put('/profile', authenticateJWT, async (req, res) => {
+router.put('/update', authenticateJWT, async (req, res) => {
   try {
+    console.log('=== PROFILE UPDATE REQUEST RECEIVED ===');
+    console.log('User ID:', req.user.id);
+    console.log('Request body:', req.body);
+    
     const { username, fullName, email, phone, date_of_birth, gender } = req.body;
+    
+    // Debug: Log received data
+    console.log('Extracted data:', { username, fullName, email, phone, date_of_birth, gender });
     
     // Check if username already exists (if changing)
     if (username) {
@@ -92,19 +103,27 @@ router.put('/profile', authenticateJWT, async (req, res) => {
       }
     }
     
+    // Debug: Log query parameters
+    console.log('Query parameters:', [username, fullName, email, phone, date_of_birth, gender, req.user.id]);
+    
     const result = await pool.query(
       `UPDATE users 
-       SET username = COALESCE($1, username),
-           full_name = COALESCE($2, full_name),
-           email = COALESCE($3, email),
-           phone = COALESCE($4, phone),
-           date_of_birth = COALESCE($5, date_of_birth),
-           gender = COALESCE($6, gender),
+       SET username = CASE WHEN $1 IS NOT NULL AND $1 != '' THEN $1 ELSE username END,
+           full_name = CASE WHEN $2 IS NOT NULL AND $2 != '' THEN $2 ELSE full_name END,
+           email = CASE WHEN $3 IS NOT NULL AND $3 != '' THEN $3 ELSE email END,
+           phone = CASE WHEN $4 IS NOT NULL THEN $4 ELSE phone END,
+           date_of_birth = CASE WHEN $5 IS NOT NULL AND $5 != '' THEN $5 ELSE date_of_birth END,
+           gender = CASE WHEN $6 IS NOT NULL AND $6 != '' THEN $6 ELSE gender END,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $7 
-       RETURNING id, email, username, full_name, phone, date_of_birth, gender, role, is_verified, profile_image`,
+       RETURNING id, email, username, full_name, phone, date_of_birth, gender, role, is_verified, profile_image_url as profile_image`,
       [username, fullName, email, phone, date_of_birth, gender, req.user.id]
     );
+
+    // Debug: Log updated user data
+    console.log('Database update successful!');
+    console.log('Updated user data:', result.rows[0]);
+    console.log('=== PROFILE UPDATE COMPLETED ===');
 
     res.json({ 
       message: 'Profile updated successfully',
@@ -119,13 +138,24 @@ router.put('/profile', authenticateJWT, async (req, res) => {
 // Upload avatar
 router.post('/avatar', authenticateJWT, upload.single('avatar'), async (req, res) => {
   try {
+    console.log('Avatar upload started for user:', req.user.id);
+    console.log('File received:', req.file ? 'Yes' : 'No');
+    
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    console.log('File details:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+
     const userId = req.user.id;
     const filename = `avatar-${userId}-${Date.now()}.jpg`;
     const filepath = path.join(uploadsDir, filename);
+
+    console.log('Saving file to:', filepath);
 
     // Process image with Sharp
     await sharp(req.file.buffer)
@@ -136,12 +166,18 @@ router.post('/avatar', authenticateJWT, upload.single('avatar'), async (req, res
       .jpeg({ quality: 90 })
       .toFile(filepath);
 
+    console.log('Image processed and saved successfully');
+
     // Update user profile with new avatar URL
     const avatarUrl = `/uploads/avatars/${filename}`;
-    await pool.query(
-      'UPDATE users SET profile_image = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+    console.log('Updating database with avatar URL:', avatarUrl);
+    
+    const result = await pool.query(
+      'UPDATE users SET profile_image_url = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING profile_image_url',
       [avatarUrl, userId]
     );
+
+    console.log('Database updated. New avatar URL:', result.rows[0]?.profile_image_url);
 
     res.json({
       message: 'Avatar uploaded successfully',

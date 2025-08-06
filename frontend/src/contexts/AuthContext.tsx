@@ -11,6 +11,10 @@ interface User {
   subscribed: boolean;
   daily_ai_queries_used: number;
   is_verified: boolean;
+  profile_image?: string;
+  phone?: string;
+  date_of_birth?: string;
+  gender?: string;
 }
 
 interface AuthContextType {
@@ -18,6 +22,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, username: string, fullName: string, phone?: string, date_of_birth?: string, gender?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -128,11 +133,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      if (apiClient.isAuthenticated()) {
+        const response = await apiClient.getCurrentUser();
+        if (response.data) {
+          console.log('Refreshed user data:', response.data);
+          setUser(response.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+    }
+  };
+
   const value = {
     user,
     signUp,
     signIn,
     signOut,
+    refreshUser,
     isLoading,
     isAuthenticated: !!user,
   };

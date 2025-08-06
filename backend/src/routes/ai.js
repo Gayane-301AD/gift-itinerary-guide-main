@@ -5,6 +5,15 @@ import pool from '../db.js';
 
 const router = express.Router();
 
+// Validate API key configuration
+const validateApiKey = () => {
+  const apiKey = process.env.GEMMA_API_KEY;
+  if (!apiKey || apiKey === 'your-actual-google-gemini-api-key-here' || apiKey.length < 20) {
+    throw new Error('GEMMA_API_KEY not properly configured. Please set a valid Google Gemini API key in your .env file');
+  }
+  return apiKey;
+};
+
 // Get user's conversations
 router.get('/conversations', authenticateJWT, async (req, res) => {
   try {
@@ -102,6 +111,20 @@ router.post('/chat', authenticateJWT, async (req, res) => {
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
+
+    // Validate API key
+    let apiKey;
+    try {
+      apiKey = validateApiKey();
+    } catch (err) {
+      console.error('API Key validation failed:', err.message);
+      return res.status(500).json({ 
+        error: 'AI service is not properly configured. Please contact support.',
+        response: "I'm sorry, but the AI service is currently unavailable. Please contact support for assistance with gift recommendations.",
+        conversation_id: conversationId || null,
+        daily_queries_remaining: 0
+      });
+    }
     
     // Check user's daily query limit
     const userResult = await pool.query(
@@ -138,18 +161,18 @@ router.post('/chat', authenticateJWT, async (req, res) => {
     } else {
       const convResult = await pool.query(
         'INSERT INTO chat_conversations (user_id, title) VALUES ($1, $2) RETURNING *',
-        [userId, 'New Conversation']
+        [userId, message.substring(0, 50) + '...']
       );
       conversation = convResult.rows[0];
     }
     
-    // Get conversation history
+    // Get conversation history (limit to last 10 messages for context)
     const historyResult = await pool.query(
-      'SELECT role, content FROM chat_messages WHERE conversation_id = $1 ORDER BY created_at ASC',
+      'SELECT role, content FROM chat_messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 10',
       [conversation.id]
     );
     
-    const conversationHistory = historyResult.rows.map(msg => ({
+    const conversationHistory = historyResult.rows.reverse().map(msg => ({
       role: msg.role,
       content: msg.content
     }));
@@ -157,65 +180,84 @@ router.post('/chat', authenticateJWT, async (req, res) => {
     // Add user message to history
     conversationHistory.push({ role: 'user', content: message });
     
-    // Call Gemma API
+    // Call Gemini API with proper error handling
     const startTime = Date.now();
+    let aiResponse;
+    let tokensUsed = 0;
     
-    if (!process.env.GEMMA_API_KEY) {
-      throw new Error('GEMMA_API_KEY not configured');
-    }
-    
-    const genAI = new GoogleGenerativeAI(process.env.GEMMA_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    
-    // Build conversation context for Gemma with language awareness
-    const languageMap = {
-      'English': 'English',
-      'Armenian': 'Armenian (հայերեն)',
-      'Russian': 'Russian (русский)'
-    };
-    
-    const userLanguage = languageMap[language] || 'English';
-    
-    const systemPrompt = `You are a helpful gift recommendation assistant for WhatToCarry. 
-    Help users find the perfect gifts based on their occasion, budget, and recipient preferences.
-    Provide thoughtful, personalized suggestions and ask clarifying questions when needed.
-    Keep responses concise but helpful.
-    
-    IMPORTANT: Always respond in ${userLanguage} regardless of what language the user writes in.
-    If the user writes in a different language, still respond in ${userLanguage}.
-    Be friendly and helpful while maintaining the ${userLanguage} language throughout the conversation.`;
-    
-    // Format conversation history for Gemma
-    let conversationText = systemPrompt + "\n\n";
-    conversationHistory.forEach(msg => {
-      if (msg.role === 'user') {
-        conversationText += `User: ${msg.content}\n`;
-      } else if (msg.role === 'assistant') {
-        conversationText += `Assistant: ${msg.content}\n`;
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      // Build conversation context for Gemini with language awareness
+      const languageMap = {
+        'English': 'English',
+        'Armenian': 'Armenian (հայերեն)',
+        'Russian': 'Russian (русский)'
+      };
+      
+      const userLanguage = languageMap[language] || 'English';
+      
+      const systemPrompt = `You are a helpful gift recommendation assistant for WhatToCarry. 
+      Help users find the perfect gifts based on their occasion, budget, and recipient preferences.
+      Provide thoughtful, personalized suggestions and ask clarifying questions when needed.
+      Keep responses concise but helpful.
+      
+      IMPORTANT: Always respond in ${userLanguage} regardless of what language the user writes in.
+      If the user writes in a different language, still respond in ${userLanguage}.
+      Be friendly and helpful while maintaining the ${userLanguage} language throughout the conversation.`;
+      
+      // Format conversation history for Gemini
+      let conversationText = systemPrompt + "\n\n";
+      conversationHistory.forEach(msg => {
+        if (msg.role === 'user') {
+          conversationText += `User: ${msg.content}\n`;
+        } else if (msg.role === 'assistant') {
+          conversationText += `Assistant: ${msg.content}\n`;
+        }
+      });
+      
+      const result = await model.generateContent(conversationText);
+      const responseTime = Date.now() - startTime;
+      
+      if (!result.response) {
+        throw new Error('No response from Gemini API');
       }
-    });
-    
-    const result = await model.generateContent(conversationText);
-    const responseTime = Date.now() - startTime;
-    
-    if (!result.response) {
-      throw new Error('No response from Gemma API');
+      
+      aiResponse = result.response.text();
+      
+      // Estimate tokens (Gemini doesn't provide exact count like OpenAI)
+      tokensUsed = Math.ceil((conversationText.length + aiResponse.length) / 4);
+      
+    } catch (apiError) {
+      console.error('Gemini API error:', apiError);
+      
+      // Provide a helpful fallback response
+      aiResponse = `I'm sorry, I'm having trouble connecting to the AI service right now. However, I'd be happy to help you with gift suggestions! 
+
+      For the best recommendations, please tell me:
+      • What's the occasion? (birthday, anniversary, holiday, etc.)
+      • What's your budget range?
+      • Who is the gift for? (age, interests, relationship to you)
+      • Any specific preferences or restrictions?
+
+      I'll do my best to help you find something perfect!`;
+      
+      tokensUsed = Math.ceil(aiResponse.length / 4);
     }
     
-    const aiResponse = result.response.text();
-    const tokensUsed = 0; // Gemma doesn't provide token count in the same way, estimate based on content length
-    const estimatedTokens = Math.ceil((conversationText.length + aiResponse.length) / 4);
+    const responseTime = Date.now() - startTime;
     
     // Save user message
     await pool.query(
       'INSERT INTO chat_messages (conversation_id, user_id, role, content, tokens_used) VALUES ($1, $2, $3, $4, $5)',
-      [conversation.id, userId, 'user', message, estimatedTokens / 2] // Approximate user tokens
+      [conversation.id, userId, 'user', message, tokensUsed / 2]
     );
     
     // Save AI response
     await pool.query(
       'INSERT INTO chat_messages (conversation_id, user_id, role, content, tokens_used) VALUES ($1, $2, $3, $4, $5)',
-      [conversation.id, userId, 'assistant', aiResponse, estimatedTokens / 2] // Approximate AI tokens
+      [conversation.id, userId, 'assistant', aiResponse, tokensUsed / 2]
     );
     
     // Update conversation timestamp
@@ -233,13 +275,13 @@ router.post('/chat', authenticateJWT, async (req, res) => {
     // Log API usage
     await pool.query(
       'INSERT INTO api_usage (user_id, api_type, endpoint, tokens_used, response_time_ms, success) VALUES ($1, $2, $3, $4, $5, $6)',
-      [userId, 'gemma', 'generateContent', estimatedTokens, responseTime, true]
+      [userId, 'gemini', 'generateContent', tokensUsed, responseTime, true]
     );
     
     res.json({ 
       response: aiResponse,
       conversation_id: conversation.id,
-      tokens_used: estimatedTokens,
+      tokens_used: tokensUsed,
       daily_queries_remaining: dailyLimit - (user.daily_ai_queries_used + 1)
     });
   } catch (err) {
@@ -249,13 +291,17 @@ router.post('/chat', authenticateJWT, async (req, res) => {
     try {
       await pool.query(
         'INSERT INTO api_usage (user_id, api_type, endpoint, success, error_message) VALUES ($1, $2, $3, $4, $5)',
-        [req.user.id, 'gemma', 'generateContent', false, err.message]
+        [req.user.id, 'gemini', 'generateContent', false, err.message]
       );
     } catch (logError) {
       console.error('Failed to log API usage:', logError);
     }
     
-    res.status(500).json({ error: 'AI chat failed' });
+    res.status(500).json({ 
+      error: 'AI chat failed',
+      response: "I'm sorry, something went wrong. Please try again or contact support if the problem persists.",
+      conversation_id: req.body.conversationId || null
+    });
   }
 });
 

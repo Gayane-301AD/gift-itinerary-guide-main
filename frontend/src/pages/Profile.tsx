@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { useNavigate } from "react-router-dom";
 import apiClient from "@/lib/api";
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -25,15 +25,17 @@ const Profile = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [avatarKey, setAvatarKey] = useState(Date.now()); // Force avatar re-render
   
   const [formData, setFormData] = useState({
-    username: user?.user_metadata?.username || "",
-    fullName: user?.user_metadata?.full_name || "",
+    username: user?.username || "",
+    fullName: user?.full_name || "",
     email: user?.email || "",
-    phone: user?.user_metadata?.phone || "",
-    date_of_birth: user?.user_metadata?.date_of_birth || "",
-    gender: user?.user_metadata?.gender || "",
-    avatar_url: user?.user_metadata?.avatar_url || ""
+    phone: user?.phone || "",
+    date_of_birth: "",
+    gender: user?.gender || "",
+    avatar_url: user?.profile_image || ""
   });
   
   const [passwordData, setPasswordData] = useState({
@@ -42,14 +44,64 @@ const Profile = () => {
     confirmPassword: ""
   });
 
-  // Helper function to construct full avatar URL
-  const getAvatarUrl = (avatarPath: string) => {
-    if (!avatarPath) return "";
-    if (avatarPath.startsWith('http')) return avatarPath;
-    if (avatarPath.startsWith('/uploads')) {
-      return `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'}${avatarPath}`;
+  // Update form data when user data changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        username: user.username || "",
+        fullName: user.full_name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        date_of_birth: formatDateForInput(user.date_of_birth || ""),
+        gender: user.gender || "",
+        avatar_url: user.profile_image || ""
+      });
+      // Update avatar key to force re-render when user data changes
+      setAvatarKey(Date.now());
     }
+  }, [user]);
+
+  // Helper function to construct full avatar URL with cache busting
+  const getAvatarUrl = (avatarPath: string, bustCache: boolean = false) => {
+    console.log('getAvatarUrl called with:', { avatarPath, bustCache });
+    
+    if (!avatarPath) {
+      console.log('No avatar path provided, returning empty string');
+      return "";
+    }
+    
+    if (avatarPath.startsWith('http')) {
+      const result = bustCache ? `${avatarPath}?t=${Date.now()}` : avatarPath;
+      console.log('HTTP avatar URL result:', result);
+      return result;
+    }
+    
+    if (avatarPath.startsWith('/uploads')) {
+      // Remove /api from backend URL for static files
+      const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000/api';
+      const baseUrl = apiUrl.replace('/api', '');
+      const fullUrl = `${baseUrl}${avatarPath}`;
+      const finalUrl = bustCache ? `${fullUrl}?t=${Date.now()}` : fullUrl;
+      console.log('Uploads avatar URL result:', finalUrl);
+      return finalUrl;
+    }
+    
+    console.log('Returning avatar path as-is:', avatarPath);
     return avatarPath;
+  };
+
+  // Helper function to format date for HTML date input
+  const formatDateForInput = (dateString: string) => {
+    if (!dateString) return "";
+    // Handle both date-only and datetime strings
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    
+    // Format as YYYY-MM-DD for HTML date input
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,13 +132,17 @@ const Profile = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      console.log('Avatar upload started for file:', file.name, 'Size:', file.size);
       setIsLoading(true);
       
       try {
         // Upload the file to the backend
+        console.log('Calling uploadAvatar API...');
         const response = await apiClient.uploadAvatar(file);
+        console.log('Upload response received:', response);
         
         if (response.error) {
+          console.error('Upload error:', response.error);
           toast({
             title: t('profile.messages.avatarUploadError'),
             description: response.error,
@@ -95,20 +151,41 @@ const Profile = () => {
           return;
         }
 
+        console.log('Avatar URL from response:', response.data?.avatar_url);
+
         // Update the form data with the new avatar URL
-        setFormData({
-          ...formData,
-          avatar_url: response.data?.avatar_url || ""
-        });
+        const newAvatarUrl = response.data?.avatar_url || "";
+        console.log('Updating form data with new avatar URL:', newAvatarUrl);
+        
+        setFormData(prevData => ({
+          ...prevData,
+          avatar_url: newAvatarUrl
+        }));
+
+        // Force avatar component to re-render with new key
+        const newKey = Date.now();
+        setAvatarKey(newKey);
+        console.log('Updated avatar key to force re-render:', newKey);
+
+        // Refresh user data in AuthContext
+        console.log('Refreshing user data...');
+        await refreshUser();
+        
+        console.log('Avatar upload complete - form data updated, context refreshed');
+
+        // Show visual feedback that avatar was saved
+        setJustSaved(true);
+        setTimeout(() => setJustSaved(false), 3000);
 
         toast({
-          title: t('profile.messages.avatarUploadSuccess'),
-          description: t('profile.messages.avatarUploadSuccess')
+          title: "✅ Avatar Updated Successfully",
+          description: "Your profile photo has been uploaded and saved!"
         });
       } catch (error) {
+        console.error('Avatar upload error:', error);
         toast({
           title: t('profile.messages.avatarUploadError'),
-          description: t('profile.messages.avatarUploadError'),
+          description: "Failed to upload avatar. Please try again.",
           variant: "destructive"
         });
       } finally {
@@ -122,13 +199,47 @@ const Profile = () => {
     setIsLoading(true);
     
     try {
-      await apiClient.updateProfile(formData);
+      console.log('=== FRONTEND: Starting profile update ===');
+      console.log('Form data being sent:', formData);
+      console.log('API Client authenticated:', apiClient.isAuthenticated());
+      console.log('API Client token:', apiClient.getToken());
+      
+      const response = await apiClient.updateProfile(formData);
+      
+      if (response.error) {
+        toast({
+          title: t('common.error'),
+          description: response.error,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Debug: Log the response received
+      console.log('Profile update response:', response);
+      
+      // Refresh user data in AuthContext to get latest information
+      await refreshUser();
+      
+      // Show visual feedback that data was saved
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 3000); // Clear after 3 seconds
+      
+      // Show success message with details of what was updated
+      const updatedFields = [];
+      if (formData.username) updatedFields.push('username');
+      if (formData.fullName) updatedFields.push('full name');
+      if (formData.email) updatedFields.push('email');
+      if (formData.phone) updatedFields.push('phone');
+      if (formData.date_of_birth) updatedFields.push('date of birth');
+      if (formData.gender) updatedFields.push('gender');
       
       toast({
-        title: t('profile.messages.profileUpdateSuccess'),
-        description: t('profile.messages.profileUpdateSuccess')
+        title: "✅ Profile Updated Successfully",
+        description: `All your profile information has been saved and updated: ${updatedFields.join(', ')}`
       });
     } catch (error) {
+      console.error('Profile update error:', error);
       toast({
         title: t('common.error'),
         description: t('profile.messages.profileUpdateError'),
@@ -163,7 +274,16 @@ const Profile = () => {
     setIsLoading(true);
     
     try {
-      await apiClient.updatePassword(passwordData.currentPassword, passwordData.newPassword);
+      const response = await apiClient.updatePassword(passwordData.currentPassword, passwordData.newPassword);
+      
+      if (response.error) {
+        toast({
+          title: t('common.error'),
+          description: response.error,
+          variant: "destructive"
+        });
+        return;
+      }
       
       toast({
         title: t('profile.messages.passwordUpdateSuccess'),
@@ -220,8 +340,13 @@ const Profile = () => {
                 {/* Avatar Section */}
                 <div className="flex items-center gap-6">
                   <div className="relative">
-                    <Avatar className="h-24 w-24">
-                      <AvatarImage src={getAvatarUrl(formData.avatar_url)} alt={formData.fullName} />
+                    <Avatar className="h-24 w-24" key={avatarKey}>
+                      <AvatarImage 
+                        src={getAvatarUrl(formData.avatar_url, true)} 
+                        alt={formData.fullName}
+                        onLoad={() => console.log('Avatar image loaded successfully')}
+                        onError={() => console.log('Avatar image failed to load')}
+                      />
                       <AvatarFallback className="text-lg">
                         {formData.fullName?.charAt(0).toUpperCase() || formData.email?.charAt(0).toUpperCase()}
                       </AvatarFallback>
@@ -244,10 +369,20 @@ const Profile = () => {
                     />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold">{formData.fullName || "User"}</h3>
-                    <p className="text-sm text-muted-foreground">{formData.email}</p>
+                    <h3 className={`font-semibold transition-all duration-300 ${
+                      justSaved ? 'text-green-600' : ''
+                    }`}>
+                      {formData.fullName || "User"}
+                      {justSaved && <span className="ml-2 text-green-500">✓</span>}
+                    </h3>
+                    <p className={`text-sm text-muted-foreground transition-all duration-300 ${
+                      justSaved ? 'text-green-600' : ''
+                    }`}>
+                      {formData.email}
+                      {justSaved && <span className="ml-2 text-green-500">✓</span>}
+                    </p>
                     <Badge variant="secondary" className="mt-2">
-                      {user.user_metadata?.subscription_tier || 'Free'} Plan
+                      {user?.subscription_tier || 'Free'} Plan
                     </Badge>
                   </div>
                 </div>
@@ -318,9 +453,20 @@ const Profile = () => {
                   </div>
                 </div>
 
-                <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
+                <Button 
+                  type="submit" 
+                  disabled={isLoading} 
+                  className={`w-full md:w-auto transition-all duration-300 ${
+                    justSaved ? 'bg-green-600 hover:bg-green-700' : ''
+                  }`}
+                >
                   <Save className="mr-2 h-4 w-4" />
-                  {isLoading ? t('profile.buttons.saving') : t('profile.buttons.saveChanges')}
+                  {isLoading 
+                    ? t('profile.buttons.saving') 
+                    : justSaved 
+                    ? '✅ All Information Saved!' 
+                    : t('profile.buttons.saveChanges')
+                  }
                 </Button>
               </form>
             </CardContent>
